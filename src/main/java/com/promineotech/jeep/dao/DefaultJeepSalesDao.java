@@ -47,7 +47,7 @@ public class DefaultJeepSalesDao implements JeepSalesDao {
       return jdbcTemplate.query(sql, params, 
                                 new RowMapper<>() {
 
-                                  @Override
+       @Override
        public Jeep mapRow(ResultSet rs, int rowNum) throws SQLException {
             // formatter:off                       
         return Jeep.builder()

@@ -4,12 +4,17 @@
 package com.promineotech.jeep.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -22,8 +27,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
+import com.promineotech.jeep.Constants;
+import com.promineotech.jeep.JeepSales;
 import com.promineotech.jeep.entity.Jeep;
 import com.promineotech.jeep.entity.JeepModel;
+import lombok.Getter;
 
 /**
  * @author smith
@@ -31,7 +39,7 @@ import com.promineotech.jeep.entity.JeepModel;
  */
 
 // @formatter:off
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, classes = {JeepSales.class})
 @ActiveProfiles("test")
 @Sql(scripts = {
     "classpath:flyway/migrations/V1.0__Jeep_Schema.sql",
@@ -41,6 +49,7 @@ import com.promineotech.jeep.entity.JeepModel;
 //@formatter:on
 
 class FetchJeepTest {
+@Getter
 @Autowired
 private TestRestTemplate restTemplate;
 
@@ -55,8 +64,8 @@ private int serverPort;
        serverPort, model, trim);
    
    //http request to rest service
-   ResponseEntity<List<Jeep>> response = restTemplate.exchange(uri, HttpMethod.GET,
-       null, new ParameterizedTypeReference<>() {});
+   ResponseEntity<List<Jeep>> response = getRestTemplate().exchange(uri, HttpMethod.GET,
+       null, new ParameterizedTypeReference<List<Jeep>>() {});
 // @formatter:on
    
    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -97,13 +106,40 @@ private int serverPort;
   }
   
   @Test
-  void testThatAnErrorMessageIsReturnedWhenAnInvalidTrimIsSupplied() {
+  void testThatAnErrorMessageIsReturnedWhenAnUnknownTrimIsSupplied() {
   
     //Given: an invalid trim level
     JeepModel model = JeepModel.WRANGLER;
-   String trim = "Invalid value";
+   String trim = "Unknown value";
 // @formatter:off
-   String uri = String.format("%s?model=%s&trim=%s", 
+   String uri = String.format("http://localhost:%d/jeeps?model=%s&trim=%s", 
+       serverPort, model, trim);
+   System.out.println(uri);
+   
+   // When: a connection is made to URI
+   //http request to rest service
+   ResponseEntity<Map<String, Object>> response = getRestTemplate().exchange(uri, HttpMethod.GET,
+       null, new ParameterizedTypeReference<Map<String, Object>>() {});
+// @formatter:on
+   System.out.println(response.getBody());
+   // Then: a not found (404) action is returned
+   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+   
+   // And: an error message is returned
+ Map<String, Object> error = response.getBody();
+ 
+ assertErrorMessageValid(error, HttpStatus.NOT_FOUND);
+  }
+
+  @ParameterizedTest
+  @MethodSource("com.promineotech.jeep.controller.FetchJeepTest#parametersForInvalidInput")
+  void testThatAnErrorMessageIsReturnedWhenAnInvalidValueIsSupplied(
+      String model, String trim, String reason) {
+  
+    //Given: an invalid trim level
+ 
+// @formatter:off
+   String uri = String.format("http://localhost:%d/jeeps?model=%s&trim=%s", 
        serverPort, model, trim);
    
    // When: a connection is made to URI
@@ -113,22 +149,33 @@ private int serverPort;
 // @formatter:on
    
    // Then: a not found (404) action is returned
-   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
    
    // And: an error message is returned
  Map<String, Object> error = response.getBody();
  
- // formatter:off
- assertThat(error)
-   .containsKey("message")
-   .containsEntry("status code", HttpStatus.NOT_FOUND.value())
-   .containsEntry("uri", "/jeeps")
-   .containsKey("timestamp")
-   .containsEntry("reason", HttpStatus.NOT_FOUND.getReasonPhrase());
- // formatter:on
+ assertErrorMessageValid(error, HttpStatus.BAD_REQUEST);
   }
-
-    
  
+  protected void assertErrorMessageValid(Map<String, Object> error, HttpStatus status) {
+    // formatter:off
+     assertThat(error)
+       .containsKey("message")
+       .containsEntry("status code", status.value())
+       .containsEntry("uri", "/jeeps")
+       .containsKey("timestamp")
+       .containsEntry("reason", status.getReasonPhrase());
+     // formatter:on
+  } 
+ 
+  static Stream<Arguments> parametersForInvalidInput() {
+    return Stream.of(
+          arguments("WRANGLER", "@#$*", "Trim contains non aplha-numeric characters."),
+          arguments("WRANGLER", "C".repeat(Constants.TRIM_MAX_LENGTH + 1), "Trim character length too long."),
+          arguments("INVALID", "Sport", "model not in enum.")
+          
+        );
+        
+  }
   
 }
