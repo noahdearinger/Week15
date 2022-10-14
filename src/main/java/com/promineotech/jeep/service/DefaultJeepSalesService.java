@@ -19,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DefaultJeepSalesService implements JeepSalesService {
 
+  @Autowired
+  private JeepSalesDao jeepSalesDao;
+  
   @Transactional(readOnly = true)
   @Override
   public List<Jeep> fetchJeeps(JeepModel model, String trim) {
@@ -35,7 +38,6 @@ public class DefaultJeepSalesService implements JeepSalesService {
    return jeeps;
   }
 
-  @Autowired
-  private JeepSalesDao jeepSalesDao;
+
   
 }

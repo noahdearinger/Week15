@@ -34,7 +34,7 @@ public class GlobalErrorHandler {
   
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   @ResponseStatus(code = HttpStatus.BAD_REQUEST)
-  public Map<String, Object> handleIllegalArgumentException(
+  public Map<String, Object> handleMethodArgumentTypeMismatchException(
       MethodArgumentTypeMismatchException e, WebRequest webRequest) {
     return createExceptionMessage(e, HttpStatus.BAD_REQUEST, webRequest, LogStatus.MESSAGE_ONLY);
   }
@@ -72,7 +72,7 @@ Map<String, Object> error = new HashMap<>();
 String timestamp = ZonedDateTime.now().format(DateTimeFormatter.RFC_1123_DATE_TIME);
 
 if(webRequest instanceof ServletWebRequest) {
-  error.put("uri", ((ServletWebRequest)webRequest).getRequest().getRequestURI());
+  error.put("uri", ((ServletWebRequest) webRequest).getRequest().getRequestURI());
 }
 
 

@@ -15,9 +15,8 @@ import lombok.extern.slf4j.Slf4j;
  * @author smith
  *
  */
-@Slf4j
 @RestController
-
+@Slf4j
 public class DefaultJeepSalesController implements JeepSalesController {
 
   @Autowired
@@ -26,8 +25,8 @@ public class DefaultJeepSalesController implements JeepSalesController {
   
   @Override
   public List<Jeep> fetchJeeps(JeepModel model, String trim) {
-    log.info("model={}&trim={}", model, trim);
-    return jeepSalesService.fetchJeeps(JeepModel.WRANGLER, "Sport");
+    log.debug("model={} & trim={}", model, trim);
+    return jeepSalesService.fetchJeeps(JeepModel.WRANGLER, trim);
  
   }
 
